@@ -1,0 +1,1 @@
+../../../flash/source/flashobject.js
