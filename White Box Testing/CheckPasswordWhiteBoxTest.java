@@ -29,6 +29,9 @@
 public class CheckPasswordWhiteBoxTest {
 
     public static void main(String[] args) {
+        // The main method works like a tiny manual test runner:
+        // it executes all six independent paths one by one and prints
+        // a compact summary at the end for demonstration.
         CheckPasswordWhiteBoxTest test = new CheckPasswordWhiteBoxTest();
 
         boolean t1 = test.testCachedPasswordMatches();
@@ -54,6 +57,8 @@ public class CheckPasswordWhiteBoxTest {
      * Expected result: true
      */
     public boolean testCachedPasswordMatches() {
+        // Simulate the branch where a cached password already exists,
+        // so the method only needs to compare the two buffers.
         StubEncryptedMindMapNode node = new StubEncryptedMindMapNode();
         node.password = new StringBuffer("abc123");
 
@@ -72,6 +77,8 @@ public class CheckPasswordWhiteBoxTest {
      * Expected result: false
      */
     public boolean testCachedPasswordMismatch() {
+        // Same outer branch as TC1, but this time the comparison should fail
+        // and the method should immediately return false.
         StubEncryptedMindMapNode node = new StubEncryptedMindMapNode();
         node.password = new StringBuffer("abc123");
 
@@ -90,6 +97,8 @@ public class CheckPasswordWhiteBoxTest {
      * Expected result: false
      */
     public boolean testDecryptReturnsNull() {
+        // This case forces the "decrypt failed" path by returning null.
+        // It represents an incorrect password or failed decryption attempt.
         StubEncryptedMindMapNode node = new StubEncryptedMindMapNode();
         node.stubDecryptResult = null;
 
@@ -108,6 +117,8 @@ public class CheckPasswordWhiteBoxTest {
      * Expected result: true
      */
     public boolean testDecryptReturnsNodePrefix() {
+        // This case simulates a successful decryption in the old format:
+        // decrypted text already starts with "<node ", so no XML check is needed.
         StubEncryptedMindMapNode node = new StubEncryptedMindMapNode();
         node.stubDecryptResult = "<node TEXT=\"demo\"></node>";
 
@@ -127,6 +138,8 @@ public class CheckPasswordWhiteBoxTest {
      * Expected result: true
      */
     public boolean testDecryptReturnsWellFormedXml() {
+        // Here the decrypted text does not start with "<node ",
+        // so the method must rely on the XML well-formedness check.
         StubEncryptedMindMapNode node = new StubEncryptedMindMapNode();
         node.stubDecryptResult = "<map><node TEXT=\"demo\"></node></map>";
         node.stubIsWellFormedXml = true;
@@ -147,6 +160,8 @@ public class CheckPasswordWhiteBoxTest {
      * Expected result: false
      */
     public boolean testDecryptReturnsMalformedXml() {
+        // This path is identical to TC5 up to the XML check,
+        // but the validation now fails and should return false.
         StubEncryptedMindMapNode node = new StubEncryptedMindMapNode();
         node.stubDecryptResult = "not-xml-content";
         node.stubIsWellFormedXml = false;
@@ -166,12 +181,15 @@ public class CheckPasswordWhiteBoxTest {
      * This is not the real FreeMind implementation.
      */
     static class StubEncryptedMindMapNode {
+        // These fields let us fully control the branch decisions from the test code
+        // without having to instantiate the real FreeMind environment.
         StringBuffer password;
         String encryptedContent;
         String stubDecryptResult;
         boolean stubIsWellFormedXml;
 
         public boolean checkPassword(StringBuffer givenPassword) {
+            // Branch 1: cached password exists, so compare directly.
             if (password != null) {
                 if (!equalsBuffer(givenPassword, password)) {
                     log("Wrong password supplied (cached!=given).");
@@ -180,12 +198,15 @@ public class CheckPasswordWhiteBoxTest {
                 return true;
             }
 
+            // Branch 2: no cached password, so simulate decryption first.
             String decryptedNode = decryptXml(encryptedContent, givenPassword);
             if (decryptedNode == null) {
                 log("Wrong password supplied (deciphered text is null).");
                 return false;
             }
 
+            // Branch 3: if the decrypted result is not the old "<node " style,
+            // the method falls back to an XML well-formedness check.
             if (!decryptedNode.startsWith("<node ")) {
                 if (!isWellFormedXml(decryptedNode)) {
                     log("Wrong password supplied (malformed deciphered text).");
@@ -193,19 +214,27 @@ public class CheckPasswordWhiteBoxTest {
                 }
             }
 
+            // On success, the provided password becomes the cached password
+            // for future direct comparisons.
             this.password = givenPassword;
             return true;
         }
 
         private String decryptXml(String encryptedString, StringBuffer pwd) {
+            // In the stub version we do not decrypt anything for real.
+            // The test preloads the value that should be "returned" here.
             return stubDecryptResult;
         }
 
         private boolean isWellFormedXml(String xml) {
+            // Again, this is intentionally controlled by the test case
+            // so that each white-box path can be isolated.
             return stubIsWellFormedXml;
         }
 
         private boolean equalsBuffer(StringBuffer left, StringBuffer right) {
+            // This reproduces the character-by-character comparison idea
+            // used by the original logic, instead of relying on object identity.
             if (left == null || right == null) {
                 return left == right;
             }
@@ -221,6 +250,8 @@ public class CheckPasswordWhiteBoxTest {
         }
 
         private void log(String message) {
+            // The stub logger makes failures visible during demos
+            // without needing the original logging framework.
             System.out.println("[stub-log] " + message);
         }
     }

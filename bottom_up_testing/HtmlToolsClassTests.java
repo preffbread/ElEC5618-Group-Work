@@ -38,6 +38,8 @@ import org.xml.sax.SAXParseException;
 public class HtmlToolsClassTests {
 
     public static void main(String[] args) {
+        // This main method is used as a simple demonstration runner.
+        // Each boolean value represents whether one selected HtmlTools behavior passed.
         HtmlToolsClassTests tests = new HtmlToolsClassTests();
 
         boolean t1 = tests.testGetInstanceNotNull();
@@ -68,6 +70,7 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testGetInstanceNotNull() {
+        // Basic singleton sanity check: the harness instance should exist.
         HtmlToolsHarness instance = HtmlToolsHarness.getInstance();
         boolean passed = assertNotNull(instance);
         printResult("TC1 getInstance() should not return null", passed);
@@ -75,6 +78,8 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testGetInstanceReturnsSameObject() {
+        // Because HtmlTools is modeled as a singleton utility,
+        // repeated access should return the same object reference.
         HtmlToolsHarness first = HtmlToolsHarness.getInstance();
         HtmlToolsHarness second = HtmlToolsHarness.getInstance();
         boolean passed = assertSame(first, second);
@@ -83,6 +88,7 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testToHtml() {
+        // The selected behavior here is XHTML-style empty-tag conversion.
         String input = "<br />";
         String expected = "<br >";
         String actual = HtmlToolsHarness.getInstance().toHtml(input);
@@ -92,6 +98,7 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testToXhtmlWithHtmlInput() {
+        // Valid HTML input should be accepted and normalized into XHTML-like output.
         String input = "<html><body><br></body></html>";
         String actual = HtmlToolsHarness.getInstance().toXhtml(input);
         boolean passed = assertNotNull(actual) && actual.contains("<br />");
@@ -100,6 +107,7 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testToXhtmlWithPlainTextInput() {
+        // Non-HTML plain text should not be converted by toXhtml().
         String input = "plain text";
         String actual = HtmlToolsHarness.getInstance().toXhtml(input);
         boolean passed = assertEquals(null, actual);
@@ -108,6 +116,8 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testIsWellformedXml() {
+        // This test intentionally checks one valid XML case and one invalid XML case
+        // so the method's accept/reject behavior is obvious during a demo.
         boolean validCase = HtmlToolsHarness.getInstance().isWellformedXml("<a></a>");
         boolean invalidCase = HtmlToolsHarness.getInstance().isWellformedXml("<a><a></a>");
         boolean passed = assertTrue(validCase) && assertFalse(invalidCase);
@@ -116,6 +126,7 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testIsHtmlNode() {
+        // HtmlTools first needs to recognize whether the input should be treated as HTML at all.
         boolean htmlCase = HtmlToolsHarness.isHtmlNode("<html><body>text</body></html>");
         boolean plainCase = HtmlToolsHarness.isHtmlNode("plain text");
         boolean passed = assertTrue(htmlCase) && assertFalse(plainCase);
@@ -124,6 +135,7 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testRemoveHtmlTagsFromString() {
+        // This verifies that only the visible text remains after removing markup.
         String input = "<html><body><b>Hello</b> world</body></html>";
         String actual = HtmlToolsHarness.removeHtmlTagsFromString(input);
         boolean passed = assertEquals("Hello world", actual.trim());
@@ -132,6 +144,8 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testExtractHtmlBody() {
+        // In many HTML-processing workflows only the body content matters,
+        // so this test isolates that extraction behavior.
         String input = "<html><head></head><body><p>Hello</p></body></html>";
         String actual = HtmlToolsHarness.extractHtmlBody(input);
         boolean passed = assertEquals("<p>Hello</p>", actual.trim());
@@ -140,6 +154,8 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testReplaceSpacesToNonbreakableSpaces() {
+        // This test focuses on preserving repeated spaces,
+        // which normal HTML rendering would otherwise collapse.
         String input = "  xy   ";
         String expected = " " + HtmlToolsHarness.NBSP + "xy " + HtmlToolsHarness.NBSP + HtmlToolsHarness.NBSP;
         String actual = HtmlToolsHarness.replaceSpacesToNonbreakableSpaces(input);
@@ -149,6 +165,8 @@ public class HtmlToolsClassTests {
     }
 
     public boolean testXmlEscapingAndUnescaping() {
+        // These two operations should form a reversible pair:
+        // escape first, then unescape back to the original text.
         String input = "<tag>&\"</tag>";
         String escaped = HtmlToolsHarness.toXMLEscapedText(input);
         String unescaped = HtmlToolsHarness.toXMLUnescapedText(escaped);
@@ -158,6 +176,7 @@ public class HtmlToolsClassTests {
     }
 
     private void printResult(String title, boolean passed) {
+        // Each test prints its own result so the execution trace is easy to explain live.
         System.out.println(title + " -> passed=" + passed);
     }
 
@@ -191,6 +210,8 @@ public class HtmlToolsClassTests {
     static class HtmlToolsHarness {
         public static final String NBSP = "\u00A0";
 
+        // These patterns support the simplified self-contained version
+        // of the original HtmlTools behaviors selected for this assignment.
         private static final HtmlToolsHarness INSTANCE = new HtmlToolsHarness();
         private static final Pattern HTML_PATTERN = Pattern.compile("(?is).*<\\s*html.*?>.*");
         private static final Pattern BODY_PATTERN = Pattern.compile("(?is).*<body[^>]*>(.*)</body>.*");
@@ -208,6 +229,7 @@ public class HtmlToolsClassTests {
         }
 
         public String toHtml(String input) {
+            // Convert XHTML empty tags such as <br /> into a simpler HTML form.
             if (input == null) {
                 return null;
             }
@@ -216,6 +238,8 @@ public class HtmlToolsClassTests {
         }
 
         public String toXhtml(String input) {
+            // Only content already recognized as HTML is converted.
+            // Plain text returns null to keep the branch behavior visible.
             if (!isHtmlNode(input)) {
                 return null;
             }
@@ -225,6 +249,8 @@ public class HtmlToolsClassTests {
 
         public boolean isWellformedXml(String xml) {
             try {
+                // A standard XML parser is used here so the test demonstrates
+                // real XML validation without external project dependencies.
                 DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                 factory.setNamespaceAware(true);
                 factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -238,6 +264,8 @@ public class HtmlToolsClassTests {
         }
 
         public static boolean isHtmlNode(String text) {
+            // The simplified decision rule is:
+            // if the text contains an <html ...> structure, treat it as HTML.
             if (text == null) {
                 return false;
             }
@@ -245,6 +273,7 @@ public class HtmlToolsClassTests {
         }
 
         public static String removeHtmlTagsFromString(String text) {
+            // This removes markup tags only and leaves the user-visible text behind.
             if (text == null) {
                 return null;
             }
@@ -252,6 +281,8 @@ public class HtmlToolsClassTests {
         }
 
         public static String extractHtmlBody(String text) {
+            // If a <body> exists, return only its content;
+            // otherwise return the original text unchanged.
             if (text == null) {
                 return null;
             }
@@ -263,6 +294,8 @@ public class HtmlToolsClassTests {
         }
 
         public static String replaceSpacesToNonbreakableSpaces(String text) {
+            // Starting from the second consecutive space, spaces are turned into NBSP
+            // so the spacing is preserved when rendered in HTML.
             if (text == null || text.isEmpty()) {
                 return text;
             }
@@ -279,6 +312,7 @@ public class HtmlToolsClassTests {
         }
 
         public static String toXMLEscapedText(String text) {
+            // Escape the XML-sensitive characters that would otherwise break markup.
             if (text == null) {
                 return null;
             }
@@ -290,6 +324,7 @@ public class HtmlToolsClassTests {
         }
 
         public static String toXMLUnescapedText(String text) {
+            // Reverse the escaping operation so the original visible text is restored.
             if (text == null) {
                 return null;
             }
@@ -301,6 +336,8 @@ public class HtmlToolsClassTests {
         }
 
         static class SilentErrorHandler implements ErrorHandler {
+            // This handler suppresses parser noise for invalid XML test cases
+            // while still throwing the exception back to the caller.
             public void warning(SAXParseException exception) throws SAXException {
             }
 

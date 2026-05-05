@@ -21,6 +21,9 @@ import java.util.regex.Pattern;
 public class BottomUpHtmlInteractionTests {
 
     public static void main(String[] args) throws Exception {
+        // This runner executes the three-layer interaction checks from bottom to top.
+        // The goal is to show not only isolated behavior, but also how the classes
+        // cooperate along one simplified content-processing chain.
         BottomUpHtmlInteractionTests tests = new BottomUpHtmlInteractionTests();
 
         boolean t1 = tests.testHtmlToolsConvertsHtmlToPlainText();
@@ -41,6 +44,8 @@ public class BottomUpHtmlInteractionTests {
     }
 
     public boolean testHtmlToolsConvertsHtmlToPlainText() {
+        // Layer 1 only:
+        // confirm that the lowest utility layer can convert HTML content into plain text.
         String html = "<html><body><b>Hello</b> world</body></html>";
         String actual = HtmlToolsHarness.htmlToPlain(html);
         boolean passed = assertEquals("Hello world", actual.trim());
@@ -49,6 +54,8 @@ public class BottomUpHtmlInteractionTests {
     }
 
     public boolean testMindMapNodeUsesHtmlToolsForPlainTextContent() {
+        // Layer 2 depends on Layer 1:
+        // the node model should not parse HTML itself, but delegate to HtmlTools.
         MindMapNodeModelHarness node = new MindMapNodeModelHarness("<html><body><i>Task</i></body></html>");
         boolean passed = assertEquals("Task", node.getPlainTextContent().trim());
         printResult("TC2 MindMapNodeModel should use HtmlTools when returning plain text", passed);
@@ -56,6 +63,8 @@ public class BottomUpHtmlInteractionTests {
     }
 
     public boolean testMindMapNodeSaveTxtUsesProcessedPlainText() throws Exception {
+        // Still Layer 2:
+        // once plain text is derived, saveTXT should write the cleaned content, not raw HTML.
         MindMapNodeModelHarness node = new MindMapNodeModelHarness("<html><body><b>Line</b></body></html>");
         StringWriter writer = new StringWriter();
         node.saveTXT(writer, 1);
@@ -65,6 +74,8 @@ public class BottomUpHtmlInteractionTests {
     }
 
     public boolean testPasteActorCreatesNodeFromHtmlClipboard() {
+        // Layer 3 begins here:
+        // paste logic receives clipboard HTML and turns it into a newly inserted node.
         MindMapNodeModelHarness root = new MindMapNodeModelHarness("root");
         PasteActorHarness actor = new PasteActorHarness();
 
@@ -77,6 +88,8 @@ public class BottomUpHtmlInteractionTests {
     }
 
     public boolean testPasteActorStoresPlainTextViewThroughMindMapNodeModel() {
+        // This test follows the dependency chain one step further:
+        // paste creates the node, then the node exposes plain text using HtmlTools.
         MindMapNodeModelHarness root = new MindMapNodeModelHarness("root");
         PasteActorHarness actor = new PasteActorHarness();
 
@@ -87,6 +100,8 @@ public class BottomUpHtmlInteractionTests {
     }
 
     public boolean testBottomUpChainFromPasteToNodeToPlainTextExport() throws Exception {
+        // This is the full end-to-end bottom-up path:
+        // PasteActor -> MindMapNodeModel -> HtmlTools -> exported plain text.
         MindMapNodeModelHarness root = new MindMapNodeModelHarness("root");
         PasteActorHarness actor = new PasteActorHarness();
 
@@ -100,6 +115,7 @@ public class BottomUpHtmlInteractionTests {
     }
 
     private void printResult(String title, boolean passed) {
+        // The console trace is intentionally simple so each test can be explained live.
         System.out.println(title + " -> passed=" + passed);
     }
 
@@ -115,6 +131,7 @@ public class BottomUpHtmlInteractionTests {
     }
 
     static class HtmlToolsHarness {
+        // Lowest layer: utility behavior used by the upper harness classes.
         private static final Pattern HTML_PATTERN = Pattern.compile("(?is).*<\\s*html.*?>.*");
         private static final Pattern TAG_PATTERN = Pattern.compile("(?is)<[^>]+>");
 
@@ -122,10 +139,12 @@ public class BottomUpHtmlInteractionTests {
         }
 
         public static boolean isHtmlNode(String text) {
+            // Decide whether content should follow the HTML-processing path.
             return text != null && HTML_PATTERN.matcher(text).matches();
         }
 
         public static String removeHtmlTagsFromString(String text) {
+            // Strip the markup and keep only the visible text content.
             if (text == null) {
                 return null;
             }
@@ -133,6 +152,8 @@ public class BottomUpHtmlInteractionTests {
         }
 
         public static String htmlToPlain(String text) {
+            // This represents the core service used by MindMapNodeModel:
+            // HTML input is cleaned, plain text input is returned unchanged.
             if (text == null) {
                 return null;
             }
@@ -144,6 +165,8 @@ public class BottomUpHtmlInteractionTests {
         }
 
         public static String makeValidXml(String text) {
+            // Included as a small helper to mirror the kind of text sanitising
+            // the original project performs before storing text.
             if (text == null) {
                 return null;
             }
@@ -153,10 +176,12 @@ public class BottomUpHtmlInteractionTests {
         }
 
         public static String unescapeHTMLUnicodeEntity(String text) {
+            // Simplified entity restoration used after clipboard HTML is read.
             return unescapeBasicEntities(text);
         }
 
         private static String unescapeBasicEntities(String text) {
+            // Only a minimal set is needed for the selected interaction scenarios.
             if (text == null) {
                 return null;
             }
@@ -167,6 +192,7 @@ public class BottomUpHtmlInteractionTests {
     }
 
     static class MindMapNodeModelHarness {
+        // Middle layer: node model behavior that depends on HtmlTools for text conversion.
         private final List<MindMapNodeModelHarness> children = new ArrayList<>();
         private String text;
         private MindMapNodeModelHarness parent;
@@ -180,10 +206,12 @@ public class BottomUpHtmlInteractionTests {
         }
 
         public String getPlainTextContent() {
+            // This is the key dependency of the node model on HtmlTools.
             return HtmlToolsHarness.htmlToPlain(text);
         }
 
         public void addChild(MindMapNodeModelHarness child) {
+            // Keeps the parent-child relationship visible for paste tests.
             child.parent = this;
             children.add(child);
         }
@@ -197,6 +225,7 @@ public class BottomUpHtmlInteractionTests {
         }
 
         public void saveTXT(StringWriter writer, int depth) {
+            // Mimics the idea of exporting the node as indented plain text.
             for (int i = 0; i < depth; i++) {
                 writer.write("    ");
             }
@@ -206,9 +235,12 @@ public class BottomUpHtmlInteractionTests {
     }
 
     static class PasteActorHarness {
+        // Highest layer: receives clipboard-style input and inserts a new node.
         private static final Pattern BODY_PATTERN = Pattern.compile("(?is).*<body[^>]*>(.*)</body>.*");
 
         public MindMapNodeModelHarness pasteHtml(String textFromClipboard, MindMapNodeModelHarness target) {
+            // The paste sequence is intentionally simple:
+            // clean the clipboard HTML, unescape basic entities, create a node, insert it.
             String cleaned = cleanClipboardHtml(textFromClipboard);
             cleaned = HtmlToolsHarness.unescapeHTMLUnicodeEntity(cleaned);
             MindMapNodeModelHarness newNode = new MindMapNodeModelHarness(cleaned);
@@ -217,6 +249,7 @@ public class BottomUpHtmlInteractionTests {
         }
 
         private String cleanClipboardHtml(String html) {
+            // Keep only the body part to model the preprocessing done before insertion.
             if (html == null) {
                 return null;
             }

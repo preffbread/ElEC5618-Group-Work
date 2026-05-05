@@ -51,6 +51,7 @@ import freemind.controller.actions.generated.instance.XmlAction;
 import freemind.extensions.PermanentNodeHook;
 import freemind.main.FreeMind;
 import freemind.main.FreeMindCommon;
+import freemind.main.FsmPasteLogger;
 import freemind.main.HtmlTools;
 import freemind.main.HtmlTools.NodeCreator;
 import freemind.main.Resources;
@@ -492,6 +493,10 @@ public class PasteActor extends XmlActorAdapter {
 	private void _paste(Transferable t, MindMapNode target, boolean asSibling,
 			boolean isLeft) {
 		if (t == null) {
+			FsmPasteLogger.logTransition("EmptyClipboard",
+					"S2_ClipboardContentRead", "S5_PasteFailedNoAction");
+			FsmPasteLogger.logTransition("ReturnToIdle",
+					"S5_PasteFailedNoAction", "S0_Idle");
 			return;
 		}
 		// Uncomment to print obtained data flavors
@@ -501,22 +506,85 @@ public class PasteActor extends XmlActorAdapter {
 		 * fl.length; i++) { System.out.println(fl[i]); }
 		 */
 		DataFlavorHandler[] dataFlavorHandlerList = getFlavorHandlers();
+		boolean handled = false;
 		for (int i = 0; i < dataFlavorHandlerList.length; i++) {
 			DataFlavorHandler handler = dataFlavorHandlerList[i];
 			DataFlavor flavor = handler.getDataFlavor();
 			if (t.isDataFlavorSupported(flavor)) {
 				try {
+					String processedState = getFsmProcessedStateForFlavor(flavor);
+					FsmPasteLogger.logTransition(getFsmEventForFlavor(flavor),
+							"S2_ClipboardContentRead", processedState);
 					handler.paste(t.getTransferData(flavor), target, asSibling,
 							isLeft, t);
+					FsmPasteLogger.logTransition("NodeInserted", processedState,
+							"S4_NodeInserted");
+					FsmPasteLogger.logTransition("ReturnToIdle",
+							"S4_NodeInserted", "S0_Idle");
+					handled = true;
 					break;
 				} catch (UnsupportedFlavorException e) {
+					FsmPasteLogger.logTransition("UnsupportedFlavor",
+							"S3_ContentProcessingFailed",
+							"S5_PasteFailedNoAction");
+					FsmPasteLogger.logTransition("ReturnToIdle",
+							"S5_PasteFailedNoAction", "S0_Idle");
 					Resources.getInstance().logException(e);
 				} catch (IOException e) {
+					FsmPasteLogger.logTransition("PasteIOException",
+							"S3_ContentProcessingFailed",
+							"S5_PasteFailedNoAction");
+					FsmPasteLogger.logTransition("ReturnToIdle",
+							"S5_PasteFailedNoAction", "S0_Idle");
 					Resources.getInstance().logException(e);
 				}
 			}
 		}
+		if (!handled) {
+			FsmPasteLogger.logTransition("UnsupportedClipboardContent",
+					"S2_ClipboardContentRead", "S5_PasteFailedNoAction");
+			FsmPasteLogger.logTransition("ReturnToIdle",
+					"S5_PasteFailedNoAction", "S0_Idle");
+		}
 		setWaitingCursor(false);
+	}
+
+	private String getFsmEventForFlavor(DataFlavor flavor) {
+		if (MindMapNodesSelection.htmlFlavor.equals(flavor)) {
+			return "HtmlContentDetected";
+		}
+		if (DataFlavor.stringFlavor.equals(flavor)) {
+			return "PlainTextDetected";
+		}
+		if (MindMapNodesSelection.mindMapNodesFlavor.equals(flavor)) {
+			return "MindMapNodeContentDetected";
+		}
+		if (MindMapNodesSelection.fileListFlavor.equals(flavor)) {
+			return "FileListContentDetected";
+		}
+		if (DataFlavor.imageFlavor.equals(flavor)) {
+			return "ImageContentDetected";
+		}
+		return "ClipboardContentDetected";
+	}
+
+	private String getFsmProcessedStateForFlavor(DataFlavor flavor) {
+		if (MindMapNodesSelection.htmlFlavor.equals(flavor)) {
+			return "S3_HtmlContentProcessed";
+		}
+		if (DataFlavor.stringFlavor.equals(flavor)) {
+			return "S3_PlainTextProcessed";
+		}
+		if (MindMapNodesSelection.mindMapNodesFlavor.equals(flavor)) {
+			return "S3_MindMapNodeProcessed";
+		}
+		if (MindMapNodesSelection.fileListFlavor.equals(flavor)) {
+			return "S3_FileListProcessed";
+		}
+		if (DataFlavor.imageFlavor.equals(flavor)) {
+			return "S3_ImageProcessed";
+		}
+		return "S3_ContentValidatedAndProcessed";
 	}
 
 	/**
