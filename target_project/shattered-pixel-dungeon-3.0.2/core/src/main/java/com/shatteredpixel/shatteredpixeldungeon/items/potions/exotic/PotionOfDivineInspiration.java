@@ -36,7 +36,7 @@ import com.shatteredpixel.shatteredpixeldungeon.ui.StatusPane;
 import com.shatteredpixel.shatteredpixeldungeon.ui.TalentsPane;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndHero;
-import com.shatteredpixel.shatteredpixeldungeon.windows.WndOptions;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndOptionsCondensed;
 import com.watabou.noosa.audio.Sample;
 import com.watabou.utils.Bundle;
 import com.watabou.utils.Random;
@@ -84,7 +84,7 @@ public class PotionOfDivineInspiration extends ExoticPotion {
 			}
 		}
 
-		GameScene.show(new WndOptions(
+		GameScene.show(new WndOptionsCondensed(
 				new ItemSprite(this),
 				Messages.titleCase(trueName()),
 				Messages.get(PotionOfDivineInspiration.class, "select_tier"),

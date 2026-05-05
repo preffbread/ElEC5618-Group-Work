@@ -23,7 +23,6 @@ package com.shatteredpixel.shatteredpixeldungeon.windows;
 
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
 import com.shatteredpixel.shatteredpixeldungeon.ui.RedButton;
-import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
 import com.watabou.noosa.Image;
 
 import java.util.ArrayList;
@@ -40,34 +39,10 @@ public class WndOptionsCondensed extends WndOptions {
 	}
 
 	@Override
-	protected void layoutBody(float pos, String message, String... options) {
-		int width = PixelScene.landscape() ? WIDTH_L : WIDTH_P;
-
-		RenderedTextBlock tfMesage = PixelScene.renderTextBlock( 6 );
-		tfMesage.text(message, width);
-		tfMesage.setPos( 0, pos );
-		add( tfMesage );
-
-		pos = tfMesage.bottom() + 2*MARGIN;
-
-		ArrayList<RedButton> buttons = new ArrayList<>();
-
-		for (int i=0; i < options.length; i++) {
-			final int index = i;
-			RedButton btn = new RedButton( options[i] ) {
-				@Override
-				protected void onClick() {
-					hide();
-					onSelect( index );
-				}
-			};
-			if (hasIcon(i)) btn.icon(getIcon(i));
-			btn.enable(enabled(i));
+	protected float layoutButtons(float pos, int width, ArrayList<RedButton> buttons) {
+		for (RedButton btn : buttons) {
 			btn.setSize(btn.reqWidth(), BUTTON_HEIGHT);
-			add( btn );
-			buttons.add(btn);
 		}
-
 		ArrayList<RedButton> curRow = new ArrayList<>();
 		float widthLeftThisRow = width;
 
@@ -152,8 +127,7 @@ public class WndOptionsCondensed extends WndOptions {
 			}
 
 		}
-
-		resize( width, (int)(pos - MARGIN) );
+		return pos;
 	}
 
 	@Override

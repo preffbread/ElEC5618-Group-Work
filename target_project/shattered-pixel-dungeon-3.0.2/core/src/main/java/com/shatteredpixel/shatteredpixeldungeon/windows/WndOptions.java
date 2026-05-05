@@ -29,6 +29,8 @@ import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.watabou.noosa.Image;
 
+import java.util.ArrayList;
+
 public class WndOptions extends Window {
 
 	protected static final int WIDTH_P = 120;
@@ -40,7 +42,7 @@ public class WndOptions extends Window {
 	public WndOptions(Image icon, String title, String message, String... options) {
 		super();
 
-		int width = PixelScene.landscape() ? WIDTH_L : WIDTH_P;
+		int width = windowWidth();
 
 		float pos = 0;
 		if (title != null) {
@@ -57,7 +59,7 @@ public class WndOptions extends Window {
 	public WndOptions( String title, String message, String... options ) {
 		super();
 
-		int width = PixelScene.landscape() ? WIDTH_L : WIDTH_P;
+		int width = windowWidth();
 
 		float pos = MARGIN;
 		if (title != null) {
@@ -74,46 +76,71 @@ public class WndOptions extends Window {
 	}
 
 	protected void layoutBody(float pos, String message, String... options){
-		int width = PixelScene.landscape() ? WIDTH_L : WIDTH_P;
+		int width = windowWidth();
+		pos = addMessageText(pos, message, width);
+		pos = layoutButtons(pos, width, createOptionButtons(options));
+		resize( width, (int)(pos - MARGIN) );
+	}
 
-		RenderedTextBlock tfMesage = PixelScene.renderTextBlock( 6 );
-		tfMesage.text(message, width);
-		tfMesage.setPos( 0, pos );
-		add( tfMesage );
+	protected int windowWidth() {
+		return PixelScene.landscape() ? WIDTH_L : WIDTH_P;
+	}
 
-		pos = tfMesage.bottom() + 2*MARGIN;
+	protected float addMessageText(float pos, String message, int width) {
+		RenderedTextBlock tfMessage = PixelScene.renderTextBlock( 6 );
+		tfMessage.text(message, width);
+		tfMessage.setPos( 0, pos );
+		add( tfMessage );
+		return tfMessage.bottom() + 2*MARGIN;
+	}
 
-		for (int i=0; i < options.length; i++) {
-			final int index = i;
-			RedButton btn = new RedButton( options[i] ) {
-				@Override
-				protected void onClick() {
-					hide();
-					onSelect( index );
-				}
-			};
-			if (hasIcon(i)) btn.icon(getIcon(i));
-			btn.enable(enabled(i));
-			add( btn );
+	protected ArrayList<RedButton> createOptionButtons(String... options) {
+		ArrayList<RedButton> buttons = new ArrayList<>();
 
+		for (int i = 0; i < options.length; i++) {
+			buttons.add(createOptionButton(i, options[i]));
+		}
+
+		return buttons;
+	}
+
+	protected RedButton createOptionButton(final int index, String label) {
+		RedButton btn = new RedButton( label ) {
+			@Override
+			protected void onClick() {
+				hide();
+				onSelect( index );
+			}
+		};
+		if (hasIcon(index)) btn.icon(getIcon(index));
+		btn.enable(enabled(index));
+		add(btn);
+		return btn;
+	}
+
+	protected float layoutButtons(float pos, int width, ArrayList<RedButton> buttons) {
+		for (int i = 0; i < buttons.size(); i++) {
+			RedButton btn = buttons.get(i);
 			if (!hasInfo(i)) {
 				btn.setRect(0, pos, width, BUTTON_HEIGHT);
 			} else {
 				btn.setRect(0, pos, width - BUTTON_HEIGHT, BUTTON_HEIGHT);
-				IconButton info = new IconButton(Icons.get(Icons.INFO)){
-					@Override
-					protected void onClick() {
-						onInfo( index );
-					}
-				};
+				IconButton info = createInfoButton(i);
 				info.setRect(width-BUTTON_HEIGHT, pos, BUTTON_HEIGHT, BUTTON_HEIGHT);
 				add(info);
 			}
-
 			pos += BUTTON_HEIGHT + MARGIN;
 		}
+		return pos;
+	}
 
-		resize( width, (int)(pos - MARGIN) );
+	protected IconButton createInfoButton(final int index) {
+		return new IconButton(Icons.get(Icons.INFO)){
+			@Override
+			protected void onClick() {
+				onInfo( index );
+			}
+		};
 	}
 
 	protected boolean enabled( int index ){
