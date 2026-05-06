@@ -109,6 +109,7 @@ import com.shatteredpixel.shatteredpixeldungeon.ui.Toast;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Toolbar;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
+import com.shatteredpixel.shatteredpixeldungeon.utils.ScreenshotUtils;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndBag;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndGame;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndHero;
@@ -123,6 +124,7 @@ import com.shatteredpixel.shatteredpixeldungeon.windows.WndOptions;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndResurrect;
 import com.watabou.glwrap.Blending;
 import com.watabou.input.ControllerHandler;
+import com.watabou.input.KeyEvent;
 import com.watabou.input.KeyBindings;
 import com.watabou.input.PointerEvent;
 import com.watabou.noosa.Camera;
@@ -144,6 +146,7 @@ import com.watabou.utils.Point;
 import com.watabou.utils.PointF;
 import com.watabou.utils.Random;
 import com.watabou.utils.RectF;
+import com.watabou.utils.Signal;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -203,6 +206,7 @@ public class GameScene extends PixelScene {
 	private LootIndicator loot;
 	private ActionIndicator action;
 	private ResumeIndicator resume;
+	private Signal.Listener<KeyEvent> screenshotListener;
 
 	{
 		inGameScene = true;
@@ -232,6 +236,7 @@ public class GameScene extends PixelScene {
 		}
 
 		scene = this;
+		registerScreenshotShortcut();
 
 		terrain = new Group();
 		add( terrain );
@@ -639,8 +644,28 @@ public class GameScene extends PixelScene {
 		}
 
 	}
+
+	private void registerScreenshotShortcut() {
+		if (screenshotListener != null) {
+			return;
+		}
+		KeyEvent.addKeyListener(screenshotListener = new Signal.Listener<KeyEvent>() {
+			@Override
+			public boolean onSignal(KeyEvent keyEvent) {
+				if (keyEvent.pressed && KeyBindings.getActionForKey(keyEvent) == SPDAction.SCREENSHOT) {
+					ScreenshotUtils.captureCurrentFrame();
+					return true;
+				}
+				return false;
+			}
+		});
+	}
 	
 	public void destroy() {
+		if (screenshotListener != null) {
+			KeyEvent.removeKeyListener(screenshotListener);
+			screenshotListener = null;
+		}
 		
 		//tell the actor thread to finish, then wait for it to complete any actions it may be doing.
 		if (!waitForActorThread( 4500, true )){
