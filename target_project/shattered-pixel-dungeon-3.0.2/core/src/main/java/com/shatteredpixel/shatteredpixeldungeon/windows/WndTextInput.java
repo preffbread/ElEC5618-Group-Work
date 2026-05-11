@@ -90,7 +90,6 @@ public class WndTextInput extends Window {
                 String input = getText() == null ? "" : getText().trim();
 
                 if (input.isEmpty()) {
-                    textBox.text("");
                     return;
                 }
 
@@ -188,7 +187,6 @@ public class WndTextInput extends Window {
                 String input = textBox.getText() == null ? "" : textBox.getText().trim();
 
                 if (input.isEmpty()) {
-                    textBox.text("");
                     return;
                 }
 
