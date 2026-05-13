@@ -69,6 +69,7 @@ public class StatusPane extends Component {
 	private int lastLvl = -1;
 
 	private BitmapText level;
+	private BitmapText lowHealthWarning;
 
 	private BuffIndicator buffs;
 	private Compass compass;
@@ -156,6 +157,12 @@ public class StatusPane extends Component {
 		level = new BitmapText( PixelScene.pixelFont);
 		level.hardlight( 0xFFFFAA );
 		add( level );
+
+		lowHealthWarning = new BitmapText(PixelScene.pixelFont);
+		lowHealthWarning.text("LOW HEALTH!");
+		lowHealthWarning.hardlight(0xFF0000);
+		lowHealthWarning.visible = false;
+		add(lowHealthWarning);
 
 		buffs = new BuffIndicator( Dungeon.hero, large );
 		add( buffs );
@@ -253,11 +260,14 @@ public class StatusPane extends Component {
 			warning += Game.elapsed * 5f *(0.4f - (health/(float)max));
 			warning %= 1f;
 			avatar.tint(ColorMath.interpolate(warning, warningColors), 0.5f );
+			lowHealthWarning.visible = true;
+			lowHealthWarning.alpha((float)Math.abs(Math.cos(warning * 10)));
 		} else if (talentBlink > 0.33f){ //stops early so it doesn't end in the middle of a blink
 			talentBlink -= Game.elapsed;
 			avatar.tint(1, 1, 0, (float)Math.abs(Math.cos(talentBlink*FLASH_RATE))/2f);
 		} else {
 			avatar.resetColor();
+			lowHealthWarning.visible = false;
 		}
 
 		hp.scale.x = Math.max( 0, (health-shield)/(float)max);
@@ -314,6 +324,10 @@ public class StatusPane extends Component {
 				level.y = y + 28.0f - level.baseLine() / 2f;
 			}
 			PixelScene.align(level);
+			lowHealthWarning.measure();
+			lowHealthWarning.x = hp.x + 10;
+			lowHealthWarning.y = hp.y - 10;
+			PixelScene.align(lowHealthWarning);
 		}
 
 		int tier = Dungeon.hero.tier();
