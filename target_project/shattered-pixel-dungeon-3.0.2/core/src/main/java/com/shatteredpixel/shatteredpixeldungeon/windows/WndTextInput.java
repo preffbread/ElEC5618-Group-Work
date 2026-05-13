@@ -87,8 +87,15 @@ public class WndTextInput extends Window {
 			@Override
 			public void enterPressed() {
 				//triggers positive action on enter pressed, only with non-multiline though.
-				onSelect(true, getText());
-				hide();
+				String input = getText() == null ? "" : getText().trim();
+
+                if (input.isEmpty()) {
+                    textBox.setText("");
+                    return;
+                }
+
+                onSelect(true, input);
+                hide();
 			}
 
 			@Override
@@ -178,8 +185,15 @@ public class WndTextInput extends Window {
 		final RedButton positiveBtn = new RedButton(posTxt) {
 			@Override
 			protected void onClick() {
-				onSelect(true, textBox.getText());
-				hide();
+				String input = textBox.getText() == null ? "" : textBox.getText().trim();
+
+                if (input.isEmpty()) {
+                    textBox.setText("");
+                    return;
+                }
+
+                onSelect(true, input);
+                hide();
 			}
 		};
 
