@@ -21,6 +21,7 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.scenes;
 
+import com.badlogic.gdx.Input;
 import com.shatteredpixel.shatteredpixeldungeon.Assets;
 import com.shatteredpixel.shatteredpixeldungeon.Badges;
 import com.shatteredpixel.shatteredpixeldungeon.Chrome;
@@ -45,6 +46,7 @@ import com.shatteredpixel.shatteredpixeldungeon.windows.WndOptions;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndSettings;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndVictoryCongrats;
 import com.watabou.glwrap.Blending;
+import com.watabou.input.KeyEvent;
 import com.watabou.noosa.BitmapText;
 import com.watabou.noosa.Camera;
 import com.watabou.noosa.Game;
@@ -52,10 +54,16 @@ import com.watabou.noosa.Image;
 import com.watabou.noosa.audio.Music;
 import com.watabou.utils.ColorMath;
 import com.watabou.utils.DeviceCompat;
+import com.watabou.utils.Signal;
 
+import java.util.ArrayList;
 import java.util.Date;
 
 public class TitleScene extends PixelScene {
+
+	private final ArrayList<FocusableStyledButton> focusButtons = new ArrayList<>();
+	private Signal.Listener<KeyEvent> menuKeyListener;
+	private int focusedIndex = -1;
 	
 	@Override
 	public void create() {
@@ -115,7 +123,7 @@ public class TitleScene extends PixelScene {
 
 		final Chrome.Type GREY_TR = Chrome.Type.GREY_BUTTON_TR;
 		
-		StyledButton btnPlay = new StyledButton(GREY_TR, Messages.get(this, "enter")){
+		FocusableStyledButton btnPlay = new FocusableStyledButton(GREY_TR, Messages.get(this, "enter")){
 			@Override
 			protected void onClick() {
 				if (GamesInProgress.checkAll().size() == 0){
@@ -142,10 +150,10 @@ public class TitleScene extends PixelScene {
 		btnPlay.icon(Icons.get(Icons.ENTER));
 		add(btnPlay);
 
-		StyledButton btnSupport = new SupportButton(GREY_TR, Messages.get(this, "support"));
+		FocusableStyledButton btnSupport = new SupportButton(GREY_TR, Messages.get(this, "support"));
 		add(btnSupport);
 
-		StyledButton btnRankings = new StyledButton(GREY_TR,Messages.get(this, "rankings")){
+		FocusableStyledButton btnRankings = new FocusableStyledButton(GREY_TR,Messages.get(this, "rankings")){
 			@Override
 			protected void onClick() {
 				ShatteredPixelDungeon.switchNoFade( RankingsScene.class );
@@ -155,7 +163,7 @@ public class TitleScene extends PixelScene {
 		add(btnRankings);
 		Dungeon.daily = Dungeon.dailyReplay = false;
 
-		StyledButton btnBadges = new StyledButton(GREY_TR, Messages.get(this, "journal")){
+		FocusableStyledButton btnBadges = new FocusableStyledButton(GREY_TR, Messages.get(this, "journal")){
 			@Override
 			protected void onClick() {
 				ShatteredPixelDungeon.switchNoFade( JournalScene.class );
@@ -164,18 +172,18 @@ public class TitleScene extends PixelScene {
 		btnBadges.icon(Icons.get(Icons.JOURNAL));
 		add(btnBadges);
 
-		StyledButton btnNews = new NewsButton(GREY_TR, Messages.get(this, "news"));
+		FocusableStyledButton btnNews = new NewsButton(GREY_TR, Messages.get(this, "news"));
 		btnNews.icon(Icons.get(Icons.NEWS));
 		add(btnNews);
 
-		StyledButton btnChanges = new ChangesButton(GREY_TR, Messages.get(this, "changes"));
+		FocusableStyledButton btnChanges = new ChangesButton(GREY_TR, Messages.get(this, "changes"));
 		btnChanges.icon(Icons.get(Icons.CHANGES));
 		add(btnChanges);
 
-		StyledButton btnSettings = new SettingsButton(GREY_TR, Messages.get(this, "settings"));
+		FocusableStyledButton btnSettings = new SettingsButton(GREY_TR, Messages.get(this, "settings"));
 		add(btnSettings);
 
-		StyledButton btnAbout = new StyledButton(GREY_TR, Messages.get(this, "about")){
+		FocusableStyledButton btnAbout = new FocusableStyledButton(GREY_TR, Messages.get(this, "about")){
 			@Override
 			protected void onClick() {
 				ShatteredPixelDungeon.switchScene( AboutScene.class );
@@ -213,6 +221,10 @@ public class TitleScene extends PixelScene {
 			btnAbout.setRect(btnSettings.right()+2, btnSettings.top(), btnSettings.width(), BTN_HEIGHT);
 		}
 
+		registerFocusableButtons(btnPlay, btnSupport, btnRankings, btnBadges, btnNews, btnChanges, btnSettings, btnAbout);
+		setFocusedButton(btnPlay);
+		bindMenuKeys();
+
 		BitmapText version = new BitmapText( "v" + Game.version, pixelFont);
 		version.measure();
 		version.hardlight( 0x888888 );
@@ -235,6 +247,14 @@ public class TitleScene extends PixelScene {
 		fadeIn();
 	}
 
+	@Override
+	public void destroy() {
+		if (menuKeyListener != null) {
+			KeyEvent.removeKeyListener(menuKeyListener);
+		}
+		super.destroy();
+	}
+
 	private void placeTorch( float x, float y ) {
 		Fireball fb = new Fireball();
 		fb.x = x - fb.width()/2f;
@@ -244,7 +264,143 @@ public class TitleScene extends PixelScene {
 		add( fb );
 	}
 
-	private static class NewsButton extends StyledButton {
+	private void registerFocusableButtons(FocusableStyledButton... buttons) {
+		for (FocusableStyledButton button : buttons) {
+			focusButtons.add(button);
+		}
+	}
+
+	private void bindMenuKeys() {
+		KeyEvent.addKeyListener(menuKeyListener = new Signal.Listener<KeyEvent>() {
+			private boolean shiftHeld;
+
+			@Override
+			public boolean onSignal(KeyEvent event) {
+				if (event.code == Input.Keys.SHIFT_LEFT || event.code == Input.Keys.SHIFT_RIGHT) {
+					shiftHeld = event.pressed;
+					return false;
+				}
+
+				if (!event.pressed || hasOpenWindow()) {
+					return false;
+				}
+
+				if (event.code == Input.Keys.TAB) {
+					cycleFocus(shiftHeld ? -1 : 1);
+					return true;
+				}
+
+				if (event.code == Input.Keys.ENTER || event.code == Input.Keys.NUMPAD_ENTER) {
+					activateFocusedButton();
+					return true;
+				}
+
+				return false;
+			}
+		});
+	}
+
+	private boolean hasOpenWindow() {
+		if (members == null) {
+			return false;
+		}
+
+		for (Object member : members.toArray()) {
+			if (member instanceof Window) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private void cycleFocus(int step) {
+		if (focusButtons.isEmpty()) {
+			return;
+		}
+
+		if (focusedIndex == -1) {
+			focusedIndex = 0;
+		} else {
+			focusedIndex = (focusedIndex + step + focusButtons.size()) % focusButtons.size();
+		}
+
+		setFocusedButton(focusButtons.get(focusedIndex));
+	}
+
+	private void activateFocusedButton() {
+		if (focusedIndex >= 0 && focusedIndex < focusButtons.size()) {
+			focusButtons.get(focusedIndex).triggerClick();
+		}
+	}
+
+	private void setFocusedButton(FocusableStyledButton focusedButton) {
+		for (int i = 0; i < focusButtons.size(); i++) {
+			FocusableStyledButton button = focusButtons.get(i);
+			boolean focused = button == focusedButton;
+			button.setKeyboardFocused(focused);
+			if (focused) {
+				focusedIndex = i;
+			}
+		}
+	}
+
+	private class FocusableStyledButton extends StyledButton {
+
+		private boolean keyboardFocused = false;
+
+		public FocusableStyledButton(Chrome.Type type, String label) {
+			super(type, label);
+		}
+
+		public void setKeyboardFocused(boolean focused) {
+			keyboardFocused = focused;
+			if (keyboardFocused) {
+				bg.hardlight(1.45f, 1.25f, 0.65f);
+				bg.brightness(1.7f);
+				if (icon != null) {
+					icon.hardlight(0xFFF2A8);
+				}
+			} else {
+				bg.resetColor();
+				if (icon != null) {
+					icon.resetColor();
+				}
+			}
+		}
+
+		public void triggerClick() {
+			onClick();
+		}
+
+		@Override
+		protected void onPointerDown() {
+			setFocusedButton(this);
+			super.onPointerDown();
+		}
+
+		@Override
+		public void update() {
+			super.update();
+			if (keyboardFocused) {
+				float pulse = 1.65f + 0.25f * (0.5f + (float)Math.sin(Game.timeTotal * 5f) / 2f);
+				bg.hardlight(1.45f, 1.25f, 0.65f);
+				bg.brightness(pulse);
+			}
+		}
+
+		@Override
+		protected void onPointerUp() {
+			if (keyboardFocused) {
+				bg.hardlight(1.45f, 1.25f, 0.65f);
+				bg.brightness(1.7f);
+			} else {
+				bg.resetColor();
+			}
+		}
+	}
+
+	private class NewsButton extends FocusableStyledButton {
 
 		public NewsButton(Chrome.Type type, String label ){
 			super(type, label);
@@ -284,7 +440,7 @@ public class TitleScene extends PixelScene {
 		}
 	}
 
-	private static class ChangesButton extends StyledButton {
+	private class ChangesButton extends FocusableStyledButton {
 
 		public ChangesButton( Chrome.Type type, String label ){
 			super(type, label);
@@ -338,7 +494,7 @@ public class TitleScene extends PixelScene {
 
 	}
 
-	private static class SettingsButton extends StyledButton {
+	private class SettingsButton extends FocusableStyledButton {
 
 		public SettingsButton( Chrome.Type type, String label ){
 			super(type, label);
@@ -368,7 +524,7 @@ public class TitleScene extends PixelScene {
 		}
 	}
 
-	private static class SupportButton extends StyledButton{
+	private class SupportButton extends FocusableStyledButton{
 
 		public SupportButton( Chrome.Type type, String label ){
 			super(type, label);
